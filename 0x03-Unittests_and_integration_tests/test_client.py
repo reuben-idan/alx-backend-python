@@ -13,6 +13,7 @@ import fixtures # This will import your provided fixtures.py
 # We are using the first (and only, as per example) test case.
 
 if not fixtures.TEST_PAYLOAD or not isinstance(fixtures.TEST_PAYLOAD, list) or \
+   len(fixtures.TEST_PAYLOAD) == 0 or \
    not fixtures.TEST_PAYLOAD[0] or not isinstance(fixtures.TEST_PAYLOAD[0], tuple):
     raise ValueError(
         "fixtures.TEST_PAYLOAD is empty, not a list, or its first element is not a tuple. "
@@ -91,7 +92,8 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         
         mock_requests_get = cls.get_patcher.start()
         mock_requests_get.side_effect = get_side_effect
-        cls.mock_requests_get = mock_requests_get # Store for debugging if needed
+        # Store mock for potential debugging access in test methods
+        cls.mock_requests_get = mock_requests_get 
 
     @classmethod
     def tearDownClass(cls):
@@ -99,30 +101,48 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
         cls.get_patcher.stop()
 
     def test_public_repos(self):
-        """Test that public_repos returns the expected list of repository names."""
+        """
+        Test that GithubOrgClient.public_repos returns the expected list of 
+        repository names based on the fixtures, without any license filter.
+        """
+        # Instantiate the client for the 'google' organization
         client_instance = GithubOrgClient("google")
+        
+        # Call the method under test
         actual_repos = client_instance.public_repos()
         
         # For debugging if this test fails:
         # print(f"\nDEBUG test_public_repos:")
         # print(f"  Actual (len {len(actual_repos)}):   {actual_repos}")
         # print(f"  Expected (len {len(self.expected_repos)}): {self.expected_repos}")
-        # print(f"  Mock calls: {self.mock_requests_get.call_args_list}")
+        # print(f"  Mock calls to requests.get: {self.mock_requests_get.call_args_list}")
         
-        # Use assertCountEqual to compare contents regardless of order.
-        # Requires Python 3.2+. If using older, use self.assertEqual(sorted(actual), sorted(expected)).
+        # Assert that the actual list of repo names matches the expected list from fixtures.
+        # assertCountEqual is used because the order of repository names might not be guaranteed.
         self.assertCountEqual(actual_repos, self.expected_repos)
 
     def test_public_repos_with_license(self):
-        """Test that public_repos correctly filters repositories by license."""
+        """
+        Test that GithubOrgClient.public_repos with license="apache-2.0"
+        returns the expected list of repository names filtered by that license,
+        based on the fixtures.
+        """
+        # Instantiate the client for the 'google' organization
         client_instance = GithubOrgClient("google")
-        actual_repos_filtered = client_instance.public_repos(license_key="apache-2.0")
+        
+        # Call the method under test with the specified license key
+        license_to_test = "apache-2.0"
+        actual_repos_filtered = client_instance.public_repos(license_key=license_to_test)
 
         # For debugging if this test fails:
-        # print(f"\nDEBUG test_public_repos_with_license:")
+        # print(f"\nDEBUG test_public_repos_with_license (license: {license_to_test}):")
         # print(f"  Actual (filtered) (len {len(actual_repos_filtered)}): {actual_repos_filtered}")
         # print(f"  Expected (apache2) (len {len(self.apache2_repos)}): {self.apache2_repos}")
-        # print(f"  Mock calls: {self.mock_requests_get.call_args_list}")
+        # print(f"  Mock calls to requests.get: {self.mock_requests_get.call_args_list}")
 
-        # Use assertCountEqual to compare contents regardless of order.
+        # Assert that the actual list of filtered repo names matches the expected list from fixtures.
+        # assertCountEqual is used because the order of repository names might not be guaranteed.
         self.assertCountEqual(actual_repos_filtered, self.apache2_repos)
+
+if __name__ == '__main__':
+    unittest.main()
