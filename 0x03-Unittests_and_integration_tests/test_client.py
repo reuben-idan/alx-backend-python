@@ -20,43 +20,40 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Set up class fixtures before running tests."""
-        # Validate that org_payload (provided by @parameterized_class) is available
+        # Ensure that org_payload (provided by @parameterized_class) is available
         # and contains the 'repos_url' key, as this is crucial for the mock setup.
         if not hasattr(cls, 'org_payload') or not isinstance(cls.org_payload, dict) or \
            "repos_url" not in cls.org_payload:
-            # This error would typically indicate an issue with the fixture data
-            # or how parameterized_class is populating class attributes.
             raise ValueError(
-                "org_payload fixture is missing, not a dictionary, or lacks 'repos_url'."
+                "Fixture 'org_payload' is missing, not a dictionary, or lacks 'repos_url'."
             )
 
-        # Define the URLs that the mock for requests.get should respond to.
-        # The primary organization API URL.
+        # Define the URL for the organization itself.
+        # The client is instantiated with "google", so this URL is fixed.
         org_api_url = "https://api.github.com/orgs/google"
         
-        # The repositories API URL is dynamically obtained from the org_payload fixture.
-        # This is the key change to make the mock robust to the actual repos_url
-        # that the client will use (which it gets from the org_payload).
-        repos_api_url = cls.org_payload["repos_url"]
+        # Define the URL for the repositories. This should come from the org_payload,
+        # as a well-behaved client will use the `repos_url` provided by the API.
+        repos_api_url_from_fixture = cls.org_payload["repos_url"]
 
         # This function will serve as the side_effect for the mocked requests.get
         def get_side_effect(url, *args, **kwargs):
             """Determines what the mocked requests.get(url) should return."""
             mock_response = Mock()
-            # print(f"DEBUG: Mock requests.get called with URL: {url}") # Uncomment for debugging
+            mock_response.status_code = 200 # Default to 200 OK for matched URLs
 
             if url == org_api_url:
                 mock_response.json.return_value = cls.org_payload
-                mock_response.status_code = 200 # Good practice to mock status_code
-            elif url == repos_api_url:
+            elif url == repos_api_url_from_fixture: # Use the dynamic repos_url
                 mock_response.json.return_value = cls.repos_payload
-                mock_response.status_code = 200 # Good practice to mock status_code
             else:
-                # For any other URL, return a 404-like response.
-                # The client code under test would ideally handle such cases.
-                # If client calls .json() on this, it will get a new Mock (default behavior of Mock)
-                # or raise an error if mock_response.json.side_effect were set to an Exception.
+                # For any other URL, simulate a 404 Not Found.
+                # This helps catch unexpected API calls made by the client.
                 mock_response.status_code = 404
+                # Making .json() raise an error for unmatched URLs can make debugging easier.
+                mock_response.json.side_effect = ValueError(
+                    f"Mock received unexpected URL: {url}. Expected {org_api_url} or {repos_api_url_from_fixture}"
+                )
             return mock_response
 
         # Set up the patch for 'requests.get'
@@ -75,19 +72,12 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
     def test_public_repos(self):
         """Test that public_repos returns the expected list of repository names."""
-        # Instantiate the client (org name "google" is fixed for these tests)
         client_instance = GithubOrgClient("google")
-        # Call the method under test
         actual_repos = client_instance.public_repos()
-        # Assert that the returned repositories match the expected fixture data
-        # self.expected_repos is provided by @parameterized_class
         self.assertEqual(actual_repos, self.expected_repos)
 
     def test_public_repos_with_license(self):
         """Test that public_repos correctly filters repositories by license."""
         client_instance = GithubOrgClient("google")
-        # Call the method under test with a specific license key
-        actual_repos = client_instance.public_repos(license_key="apache-2.0")
-        # Assert that the returned repositories match the expected fixture data
-        # self.apache2_repos is provided by @parameterized_class
-        self.assertEqual(actual_repos, self.apache2_repos)
+        repos = client_instance.public_repos(license_key="apache-2.0")
+        self.assertEqual(repos, self.apache2_repos)
