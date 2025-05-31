@@ -5,17 +5,20 @@ import unittest
 from unittest.mock import patch, Mock
 from parameterized import parameterized_class
 from client import GithubOrgClient
-import fixtures  # Assuming fixtures.py is in the same directory or properly importable
+import fixtures  # ensure fixtures.py is importable
 
 
-@parameterized_class([
-    {
-        "org_payload": fixtures.org_payload,
-        "repos_payload": fixtures.repos_payload,
-        "expected_repos": fixtures.expected_repos,
-        "apache2_repos": fixtures.apache2_repos,
-    }
-])
+@parameterized_class(
+    ("org_payload", "repos_payload", "expected_repos", "apache2_repos"),
+    [
+        (
+            fixtures.org_payload,
+            fixtures.repos_payload,
+            fixtures.expected_repos,
+            fixtures.apache2_repos,
+        )
+    ],
+)
 class TestIntegrationGithubOrgClient(unittest.TestCase):
     """Integration tests for GithubOrgClient.public_repos with mocked requests."""
 
@@ -23,7 +26,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
     def setUpClass(cls):
         """Set up mock for requests.get to return fixture data."""
         cls.get_patcher = patch("requests.get")
-        mock_get = cls.get_patcher.start()
+        cls.mock_get = cls.get_patcher.start()
 
         def get_side_effect(url, *args, **kwargs):
             mock_resp = Mock()
@@ -35,7 +38,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
                 mock_resp.json.return_value = None
             return mock_resp
 
-        mock_get.side_effect = get_side_effect
+        cls.mock_get.side_effect = get_side_effect
 
     @classmethod
     def tearDownClass(cls):
