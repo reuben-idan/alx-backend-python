@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch
 from parameterized import parameterized_class
 from client import GithubOrgClient
-import fixtures  # Ensure fixtures.py is accessible and contains the needed data
+import fixtures
 
 
 @parameterized_class(
@@ -24,7 +24,7 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        """Start patching requests.get and setup side effects for returning fixture data."""
+        """Start patching requests.get and setup side effects for fixture data."""
         cls.get_patcher = patch("client.requests.get")
         cls.mock_get = cls.get_patcher.start()
 
