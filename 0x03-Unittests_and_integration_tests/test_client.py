@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Integration tests for client.GithubOrgClient.public_repos method."""
+"""Integration tests for client.GithubOrgClient.public_repos."""
 
 import unittest
 from unittest.mock import patch
@@ -20,13 +20,12 @@ import fixtures
     ],
 )
 class TestIntegrationGithubOrgClient(unittest.TestCase):
-    """Integration test class for GithubOrgClient.public_repos."""
+    """Integration test for GithubOrgClient.public_repos."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Start patching requests.get and setup side effects for fixture data."""
-        cls.get_patcher = patch("client.requests.get")
-        cls.mock_get = cls.get_patcher.start()
+    def setUp(self):
+        """Start patching requests.get as instance attribute."""
+        self.get_patcher = patch("client.requests.get")
+        self.mock_get = self.get_patcher.start()
 
         def side_effect(url, *args, **kwargs):
             class MockResponse:
@@ -37,20 +36,19 @@ class TestIntegrationGithubOrgClient(unittest.TestCase):
                     return self._json
 
             if url == "https://api.github.com/orgs/google":
-                return MockResponse(cls.org_payload)
+                return MockResponse(self.org_payload)
             if url == "https://api.github.com/orgs/google/repos":
-                return MockResponse(cls.repos_payload)
+                return MockResponse(self.repos_payload)
             return MockResponse(None)
 
-        cls.mock_get.side_effect = side_effect
+        self.mock_get.side_effect = side_effect
 
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         """Stop patching requests.get."""
-        cls.get_patcher.stop()
+        self.get_patcher.stop()
 
     def test_public_repos(self):
-        """Test public_repos returns expected list of repo names."""
+        """Test public_repos returns expected repo list."""
         client = GithubOrgClient("google")
         repos = client.public_repos()
         self.assertEqual(repos, self.expected_repos)
