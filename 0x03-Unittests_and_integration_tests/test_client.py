@@ -5,7 +5,7 @@ import unittest
 from unittest.mock import patch, Mock
 from parameterized import parameterized_class
 from client import GithubOrgClient
-import fixtures  # Assuming fixtures.py is in the same directory or properly importable
+import fixtures  # Ensure fixtures.py is importable
 
 
 @parameterized_class([
@@ -19,28 +19,26 @@ import fixtures  # Assuming fixtures.py is in the same directory or properly imp
 class TestIntegrationGithubOrgClient(unittest.TestCase):
     """Integration tests for GithubOrgClient.public_repos with mocked requests."""
 
-    @classmethod
-    def setUpClass(cls):
-        """Set up mock for requests.get to return fixture data."""
-        cls.get_patcher = patch("requests.get")
-        mock_get = cls.get_patcher.start()
+    def setUp(self):
+        """Set up mock for requests.get using instance variable self.get_patcher."""
+        self.get_patcher = patch("requests.get")
+        mock_get = self.get_patcher.start()
 
         def get_side_effect(url, *args, **kwargs):
             mock_resp = Mock()
             if url == "https://api.github.com/orgs/google":
-                mock_resp.json.return_value = cls.org_payload
+                mock_resp.json.return_value = self.org_payload
             elif url == "https://api.github.com/orgs/google/repos":
-                mock_resp.json.return_value = cls.repos_payload
+                mock_resp.json.return_value = self.repos_payload
             else:
                 mock_resp.json.return_value = None
             return mock_resp
 
         mock_get.side_effect = get_side_effect
 
-    @classmethod
-    def tearDownClass(cls):
+    def tearDown(self):
         """Stop patching requests.get."""
-        cls.get_patcher.stop()
+        self.get_patcher.stop()
 
     def test_public_repos(self):
         """Test GithubOrgClient.public_repos returns expected repo names."""
