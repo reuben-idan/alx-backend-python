@@ -1,13 +1,6 @@
-from rest_framework.routers import DefaultRouter
-from rest_framework_nested.routers import NestedDefaultRouter
-from .views import UserViewSet, MessageViewSet
+from django.urls import path
+from .views import UserMessageList
 
-# Parent router
-router = DefaultRouter()
-router.register(r'users', UserViewSet, basename='user')
-
-# Nested router
-nested_router = NestedDefaultRouter(router, r'users', lookup='user')
-nested_router.register(r'messages', MessageViewSet, basename='user-messages')
-
-urlpatterns = router.urls + nested_router.urls
+urlpatterns = [
+    path('messages/', UserMessageList.as_view(), name='user_messages'),
+]
