@@ -1,37 +1,41 @@
 from rest_framework import serializers
-from .models import CustomUser, Conversation, Message
+from .models import User, Conversation, Message
 
-# ✅ Serializer for CustomUser
-class CustomUserSerializer(serializers.ModelSerializer):
-    phone_number = serializers.CharField()  # Explicit CharField usage
+class UserSerializer(serializers.ModelSerializer):
+    display_name = serializers.CharField(source='get_full_name', read_only=True)
 
     class Meta:
-        model = CustomUser
-        fields = ['user_id', 'username', 'email', 'first_name', 'last_name', 'phone_number']
+        model = User
+        fields = [
+            'id', 'username', 'email', 'first_name', 'last_name',
+            'phone_number', 'bio', 'display_name'
+        ]
 
-# ✅ Serializer for Message
 class MessageSerializer(serializers.ModelSerializer):
-    sender = CustomUserSerializer(read_only=True)
+    sender = UserSerializer(read_only=True)
+    short_message = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
-        fields = ['message_id', 'sender', 'message_body', 'sent_at', 'created_at']
+        fields = [
+            'message_id', 'conversation', 'sender', 'message_body',
+            'sent_at', 'short_message'
+        ]
 
-# ✅ Serializer for Conversation with nested messages using SerializerMethodField
+    def get_short_message(self, obj):
+        # Return the first 20 characters of the message body
+        return obj.message_body[:20]
+
+    def validate_message_body(self, value):
+   #raise errors if the message body is empty
+        if not value.strip():
+            raise serializers.ValidationError("Message body cannot be empty.")
+        return value
+
 class ConversationSerializer(serializers.ModelSerializer):
-    participants = CustomUserSerializer(many=True, read_only=True)
-    messages = serializers.SerializerMethodField()
+    participants = UserSerializer(many=True, read_only=True)
+    messages = MessageSerializer(many=True, read_only=True)
 
     class Meta:
         model = Conversation
-        fields = ['conversation_id', 'participants', 'messages', 'created_at']
-
-    def get_messages(self, obj):
-        messages = obj.messages.all()
-        return MessageSerializer(messages, many=True).data
-
-    def validate(self, data):
-        if 'participants' in data and not data['participants']:
-            raise serializers.ValidationError("Conversation must have at least one participant.")
-        return data
-
+        fields = ['conversation_id', 'participants', 'created_at', 'messages']
