@@ -21,12 +21,34 @@ class Message(models.Model):
         related_name='edited_messages',
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
-        help_text="User who last edited this message"
+        on_delete=models.SET_NULL
+    )
+    parent_message = models.ForeignKey(
+        'self',
+        null=True,
+        blank=True,
+        related_name='replies',
+        on_delete=models.CASCADE,
+        help_text="Optional. Indicates this message is a reply to another."
     )
 
     def __str__(self):
-        return f"From {self.sender.username} to {self.receiver.username}: {self.content[:20]}"
+        return f"Msg {self.id} from {self.sender} to {self.receiver}"
+
+    def get_thread(self):
+        """
+        Recursively fetch all nested replies to this message.
+        """
+        thread = []
+
+        def fetch_replies(message):
+            replies = message.replies.all()
+            for reply in replies:
+                thread.append(reply)
+                fetch_replies(reply)
+
+        fetch_replies(self)
+        return thread
 
 
 class Notification(models.Model):
@@ -57,8 +79,7 @@ class MessageHistory(models.Model):
         User,
         null=True,
         blank=True,
-        on_delete=models.SET_NULL,
-        help_text="User who made the edit"
+        on_delete=models.SET_NULL
     )
 
     def __str__(self):
