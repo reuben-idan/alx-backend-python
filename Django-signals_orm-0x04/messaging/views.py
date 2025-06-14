@@ -1,47 +1,43 @@
-from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib.auth.models import User
 from .models import Message
-from django.db.models import Prefetch
+from django.contrib import messages as django_messages
+from django.views.decorators.http import require_POST
 
 
 @login_required
-def inbox_view(request):
-    """
-    Displays all messages received by the logged-in user.
-    """
-    messages = Message.objects.filter(receiver=request.user, parent_message__isnull=True) \
-        .select_related('sender', 'receiver') \
-        .prefetch_related(
-            Prefetch('replies', queryset=Message.objects.select_related('sender', 'receiver'))
-        )
-    return render(request, 'messaging/inbox.html', {'messages': messages})
+def unread_inbox_view(request):
+    """Display only unread messages using custom manager and .only() optimization."""
+    unread_messages = Message.unread.unread_for_user(request.user)
+    return render(request, 'messaging/unread.html', {
+        'messages': unread_messages
+    })
 
 
 @login_required
-def sent_messages_view(request):
-    """
-    Displays all messages sent by the logged-in user.
-    This satisfies the check for sender=request.user.
-    """
-    messages = Message.objects.filter(sender=request.user) \
-        .select_related('receiver') \
-        .prefetch_related('replies')
-    return render(request, 'messaging/sent.html', {'messages': messages})
-
-
-@login_required
-def message_thread_view(request, message_id):
-    """
-    Displays a single message and its threaded replies.
-    """
+def threaded_conversation_view(request, message_id):
+    """Display a message thread including all replies, using optimized queries."""
     root_message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver', 'parent_message')
-        .prefetch_related('replies', 'history'),
-        pk=message_id
+        Message.objects.select_related('sender', 'receiver')
+                       .prefetch_related('replies__sender', 'replies__receiver'),
+        pk=message_id,
+        receiver=request.user
     )
-
     thread = root_message.get_thread()
+
     return render(request, 'messaging/thread.html', {
         'root_message': root_message,
-        'thread': thread
+        'replies': thread
     })
+
+
+@require_POST
+@login_required
+def delete_user_view(request):
+    """Allow logged-in user to delete their account. Post-delete signal will handle cleanup."""
+    user = request.user
+    username = user.username
+    user.delete()
+    django_messages.success(request, f"Account '{username}' and all related data deleted.")
+    return redirect('home')  # or login page
