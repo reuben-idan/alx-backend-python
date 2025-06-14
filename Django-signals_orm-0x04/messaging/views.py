@@ -11,24 +11,13 @@ from django.contrib.auth.models import User
 @login_required
 def unread_inbox_view(request):
     """
-    Display unread messages for the logged-in user.
-    Optimized with .only() to load only essential fields.
-    """
-    unread_messages = Message.unread.unread_for_user(request.user)
-    return render(request, 'messaging/unread.html', {
-        'messages': unread_messages
-    })
-
-
-@login_required
-def unread_inbox_view(request):
-    """
-    Display unread messages for the logged-in user using .filter and .only for optimization.
+    Display unread messages for the logged-in user using select_related and only for optimization.
     """
     unread_messages = Message.objects.filter(
         receiver=request.user,
         read=False
-    ).only('id', 'sender', 'content', 'timestamp')  # ✅ optimization
+    ).select_related('sender')  # ✅ Optimizes foreign key access
+    .only('id', 'sender__username', 'content', 'timestamp')  # ✅ Limits fields loaded
 
     return render(request, 'messaging/unread.html', {
         'messages': unread_messages
