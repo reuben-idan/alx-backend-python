@@ -1,11 +1,38 @@
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout
-from django.shortcuts import redirect
-from django.contrib.auth.models import User
+from .models import Message
+from django.db.models import Prefetch
+
 
 @login_required
-def delete_user(request):
-    user = request.user
-    logout(request)  # Log them out first
-    user.delete()  # Triggers the signal
-    return redirect('home')  # Redirect to homepage or login page
+def inbox_view(request):
+    """
+    Displays all messages received by the logged-in user.
+    Optimized using select_related and prefetch_related.
+    """
+    messages = Message.objects.filter(receiver=request.user, parent_message__isnull=True) \
+        .select_related('sender', 'receiver') \
+        .prefetch_related(
+            Prefetch('replies', queryset=Message.objects.select_related('sender', 'receiver'))
+        )
+
+    return render(request, 'messaging/inbox.html', {'messages': messages})
+
+
+@login_required
+def message_thread_view(request, message_id):
+    """
+    Displays a single message and its threaded replies recursively.
+    """
+    root_message = get_object_or_404(
+        Message.objects.select_related('sender', 'receiver', 'parent_message') \
+                       .prefetch_related('replies', 'history'),
+        pk=message_id,
+        receiver=request.user
+    )
+
+    thread = root_message.get_thread()  # recursive reply chain
+    return render(request, 'messaging/thread.html', {
+        'root_message': root_message,
+        'thread': thread
+    })
