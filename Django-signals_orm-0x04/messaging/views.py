@@ -21,22 +21,18 @@ def unread_inbox_view(request):
 
 
 @login_required
-def threaded_conversation_view(request, message_id):
+def unread_inbox_view(request):
     """
-    Display a message and its threaded replies using select_related and prefetch_related.
+    Display unread messages for the logged-in user using .filter and .only for optimization.
     """
-    root_message = get_object_or_404(
-        Message.objects.select_related('sender', 'receiver')
-                       .prefetch_related('replies__sender', 'replies__receiver'),
-        pk=message_id,
-        receiver=request.user
-    )
-    thread = root_message.get_thread()
-    return render(request, 'messaging/thread.html', {
-        'root_message': root_message,
-        'replies': thread
-    })
+    unread_messages = Message.objects.filter(
+        receiver=request.user,
+        read=False
+    ).only('id', 'sender', 'content', 'timestamp')  # ✅ optimization
 
+    return render(request, 'messaging/unread.html', {
+        'messages': unread_messages
+    })
 
 @require_POST
 @login_required
