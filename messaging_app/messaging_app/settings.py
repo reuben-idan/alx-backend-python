@@ -114,11 +114,14 @@ WSGI_APPLICATION = 'messaging_app.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': env('DB_NAME'),
-        'USER': env('DB_USER'),
-        'PASSWORD': env('DB_PASSWORD'),
-        'HOST': env('DB_HOST'),
-        'PORT': env('DB_PORT'),
+        'NAME': env('MYSQL_DATABASE', default='messaging_db'),
+        'USER': env('MYSQL_USER', default='messaging_user'),
+        'PASSWORD': env('MYSQL_PASSWORD', default='messaging_password123'),
+        'HOST': env('MYSQL_HOST', default='db'),
+        'PORT': env('MYSQL_PORT', default='3306'),
+        'OPTIONS': {
+            'charset': 'utf8mb4',
+        },
     }
 }
 
