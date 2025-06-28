@@ -1,19 +1,16 @@
-# base image
-FROM python:3.10
+FROM python:3.12
 
-# work directory
 WORKDIR /app
 
-#install dependencies
-COPY requirements.txt .
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY . . 
 
-# django default port.
-EXPOSE 8000 
+RUN apt-get update && apt-get install -y netcat-openbsd
 
-# Run the app
+RUN chmod +x wait-for-db.sh
+
+EXPOSE 8000
+ENTRYPOINT ["./wait-for-db.sh"]
 CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
-
-# "-p"

@@ -14,14 +14,6 @@ from .serializers import UserSerializer, ConversationSerializer, MessageSerializ
 from .models import User, Message, Conversation
 from .permisssions import IsConversationParticipant, IsSelfOrReadOnly, IsSenderOrReadOnly
 
-from django.contrib.auth.decorators import login_required
-from django.views.decorators.cache import cache_page
-from django.shortcuts import render, redirect
-from django.views.decorators.http import require_POST
-from django.contrib import messages as django_messages
-from django.http import JsonResponse
-from django.db import connection
-
 
 class UserView(viewsets.ModelViewSet):
     """Allow creating, retrieving, updating and deleting a user"""
@@ -98,64 +90,4 @@ class ConversationView(viewsets.ModelViewSet):
 
         conversation.participants.add(user)
         return Response({"success": f"{user.username} added to conversation"}, status=status.HTTP_200_OK)
-
-def health_check(request):
-    """
-    Health check endpoint for Kubernetes liveness and readiness probes
-    """
-    try:
-        # Check database connection
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT 1")
-        
-        return JsonResponse({
-            'status': 'healthy',
-            'database': 'connected',
-            'message': 'Django messaging app is running'
-        }, status=200)
-    except Exception as e:
-        return JsonResponse({
-            'status': 'unhealthy',
-            'database': 'disconnected',
-            'error': str(e)
-        }, status=503)
-
-@cache_page(60)  # ✅ Caches this view for 60 seconds
-@login_required
-def unread_inbox_view(request):
-    """
-    Display unread messages for the logged-in user using:
-    - Custom manager: Message.unread.unread_for_user()
-    - Query optimizations: .select_related() and .only()
-    - Fallback Message.objects.filter() to pass grading checks
-    """
-
-    # ✅ Custom manager for clean filtering
-    unread_queryset = Message.unread.unread_for_user(request.user)
-
-    # ✅ Explicit filter usage for grader check (not used in logic)
-    dummy_queryset = Message.objects.filter(receiver=request.user, read=False)[:1]
-
-    # ✅ Optimize with select_related and only
-    unread_messages = unread_queryset.select_related('sender').only(
-        'id', 'sender__username', 'content', 'timestamp'
-    )
-
-    return render(request, 'messaging/unread.html', {
-        'messages': unread_messages
-    })
-
-
-@require_POST
-@login_required
-def delete_user_view(request):
-    """
-    Delete the currently authenticated user.
-    Related data is cleaned up via post_delete signal.
-    """
-    user = request.user
-    username = user.username
-    user.delete()
-    django_messages.success(request, f"Account '{username}' and all related data deleted.")
-    return redirect('home')  # Update with your actual redirect view name
     
