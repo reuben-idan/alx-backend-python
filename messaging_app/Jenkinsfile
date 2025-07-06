@@ -1,47 +1,21 @@
-pipeline {
-    agent {
-        docker {
-            image 'python:3.10'
-        }
-    }
-
-    environment {
-        VENV_DIR = '.venv'
-    }
-
-    stages {
-        stage('Checkout') {
+pipeline {    agent {        docker {            image 'python:3.10'        }    }    environment {        VENV_DIR = '.venv'    }    stages {        stage('Checkout') {            steps {                git credentialsId: 'github-creds', url: 'https://github.com/reuben-idan/alx-backend-python.git'            }        }        stage('Install Dependencies') {            steps {                sh 'python -m venv $VENV_DIR'                sh '. $VENV_DIR/bin/activate && pip install --upgrade pip pytest'                sh '. $VENV_DIR/bin/activate && pip install -r messaging_app/requirements.txt || pip install -r messaging_app/requirement.txt'            }        }        stage('Run Tests') {            steps {                sh '. $VENV_DIR/bin/activate && pytest messaging_app --junitxml=report.xml'            }        }        stage('Publish Test Report') {            steps {                junit 'report.xml'            }        }        stage('Build Docker Image') {
             steps {
-                git credentialsId: 'github-creds', url: 'https://github.com/reuben-idan/alx-backend-python.git'
+                script {
+                    // Set your Docker Hub repo below, e.g., 'idanuser/messaging_app:latest'
+                    env.IMAGE_NAME = "${DOCKERHUB_REPO ?: 'idanuser/messaging_app:latest'}"
+                }
+                sh 'docker build -t $IMAGE_NAME messaging_app'
             }
-        }
-
-        stage('Install Dependencies') {
+        }        stage('Push Docker Image') {
             steps {
-                sh 'python -m venv $VENV_DIR'
-                sh '. $VENV_DIR/bin/activate && pip install --upgrade pip pytest'
-                sh '. $VENV_DIR/bin/activate && pip install -r messaging_app/requirements.txt || pip install -r messaging_app/requirement.txt'
+                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKERHUB_USER', passwordVariable: 'DOCKERHUB_PASS')]) {
+                    sh 'echo $DOCKERHUB_PASS | docker login -u $DOCKERHUB_USER --password-stdin'
+                    sh 'docker push $IMAGE_NAME'
+                    sh 'docker logout'
+                }
             }
-        }
-
-        stage('Run Tests') {
+        }        stage('Cleanup Docker Image') {
             steps {
-                sh '. $VENV_DIR/bin/activate && pytest messaging_app --junitxml=report.xml'
+                sh 'docker rmi $IMAGE_NAME || true'
             }
-        }
-
-        stage('Publish Test Report') {
-            steps {
-                junit 'report.xml'
-            }
-        }
-    }
-
-    options {
-        disableConcurrentBuilds()
-    }
-
-    triggers {
-        // manual trigger only
-    }
-} 
+        }    }    options {        disableConcurrentBuilds()    }    triggers {        // manual trigger only    }} 09
