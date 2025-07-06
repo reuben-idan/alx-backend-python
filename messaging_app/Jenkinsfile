@@ -1,0 +1,45 @@
+pipeline {
+    agent any
+
+    environment {
+        VENV_DIR = 'venv'
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull code from GitHub
+                checkout scm
+            }
+        }
+        stage('Set up Python') {
+            steps {
+                // Use ShiningPanda to create a virtualenv and install requirements
+                withPythonEnv("${env.WORKSPACE}/${VENV_DIR}") {
+                    sh 'python -m pip install --upgrade pip'
+                    sh 'pip install -r requirement.txt || pip install -r requirements.txt'
+                }
+            }
+        }
+        stage('Run Tests') {
+            steps {
+                withPythonEnv("${env.WORKSPACE}/${VENV_DIR}") {
+                    sh 'pip install pytest pytest-html'
+                    sh 'pytest --maxfail=1 --disable-warnings --html=report.html'
+                }
+            }
+            post {
+                always {
+                    // Archive the test report
+                    archiveArtifacts artifacts: 'report.html', fingerprint: true
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            cleanWs()
+        }
+    }
+} 
