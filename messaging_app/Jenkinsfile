@@ -1,45 +1,47 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'python:3.10'
+        }
+    }
 
     environment {
-        VENV_DIR = 'venv'
+        VENV_DIR = '.venv'
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Pull code from GitHub
-                checkout scm
+                git credentialsId: 'github-creds', url: 'https://github.com/your-username/alx-backend-python.git'
             }
         }
-        stage('Set up Python') {
+
+        stage('Install Dependencies') {
             steps {
-                // Use ShiningPanda to create a virtualenv and install requirements
-                withPythonEnv("${env.WORKSPACE}/${VENV_DIR}") {
-                    sh 'python -m pip install --upgrade pip'
-                    sh 'pip install -r requirement.txt || pip install -r requirements.txt'
-                }
+                sh 'python -m venv $VENV_DIR'
+                sh '. $VENV_DIR/bin/activate && pip install --upgrade pip pytest'
+                sh '. $VENV_DIR/bin/activate && pip install -r messaging_app/requirements.txt || pip install -r messaging_app/requirement.txt'
             }
         }
+
         stage('Run Tests') {
             steps {
-                withPythonEnv("${env.WORKSPACE}/${VENV_DIR}") {
-                    sh 'pip install pytest pytest-html'
-                    sh 'pytest --maxfail=1 --disable-warnings --html=report.html'
-                }
+                sh '. $VENV_DIR/bin/activate && pytest messaging_app --junitxml=report.xml'
             }
-            post {
-                always {
-                    // Archive the test report
-                    archiveArtifacts artifacts: 'report.html', fingerprint: true
-                }
+        }
+
+        stage('Publish Test Report') {
+            steps {
+                junit 'report.xml'
             }
         }
     }
 
-    post {
-        always {
-            cleanWs()
-        }
+    options {
+        disableConcurrentBuilds()
+    }
+
+    triggers {
+        // manual trigger only
     }
 } 
