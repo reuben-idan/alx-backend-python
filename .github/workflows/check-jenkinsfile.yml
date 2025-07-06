@@ -1,0 +1,22 @@
+name: Check Jenkinsfile Exists
+
+on:
+  push:
+    paths:
+      - "messaging_app/Jenkinsfile"
+  pull_request:
+    paths:
+      - "messaging_app/Jenkinsfile"
+
+jobs:
+  check-jenkinsfile:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Check Jenkinsfile exists and is not empty
+        run: |
+          if [ ! -s messaging_app/Jenkinsfile ]; then
+            echo "messaging_app/Jenkinsfile does not exist or is empty!" >&2
+            exit 1
+          fi
